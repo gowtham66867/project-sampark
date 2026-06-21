@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Project Sampark | Bank Mitra Console</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">S</div>
+          <div>
+            <h1>Project Sampark</h1>
+            <p>Agentic Bank Mitra Copilot</p>
+          </div>
+        </div>
+
+        <section class="panel">
+          <label for="customerSelect">Walk-in customer</label>
+          <select id="customerSelect"></select>
+          <button id="runButton" type="button">Run Assisted Journey</button>
+        </section>
+
+        <section class="metric-panel">
+          <span>FY25 adoption gap</span>
+          <strong>~43 crore</strong>
+          <small>52 crore SBI customers minus 8.77 crore YONO users</small>
+        </section>
+
+        <section class="metric-panel">
+          <span>BC outlet scale</span>
+          <strong>82,900</strong>
+          <small>Last-mile outlets amplified by one copilot</small>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Digital Adoption Journey</p>
+            <h2 id="goal">Listening for customer intent...</h2>
+          </div>
+          <div class="audit-pill" id="auditId">Audit pending</div>
+        </header>
+
+        <section class="customer-strip" id="customerStrip"></section>
+
+        <section class="loop-grid">
+          <article class="stage active">
+            <span>1</span>
+            <h3>Listen</h3>
+            <p>Capture Bank Mitra and customer intent in the local language.</p>
+          </article>
+          <article class="stage active">
+            <span>2</span>
+            <h3>Plan</h3>
+            <p>Pick the single highest-value next action for this visit.</p>
+          </article>
+          <article class="stage active">
+            <span>3</span>
+            <h3>Co-execute</h3>
+            <p>Specialist agents drive account, UPI, YONO, and product tasks.</p>
+          </article>
+          <article class="stage active">
+            <span>4</span>
+            <h3>Verify</h3>
+            <p>Consent, KYC, limits, and fraud checks before submission.</p>
+          </article>
+          <article class="stage active">
+            <span>5</span>
+            <h3>Learn</h3>
+            <p>Feed outcomes back into the next-best-action playbook.</p>
+          </article>
+        </section>
+
+        <section class="content-grid">
+          <article class="panel wide">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Co-execution Plan</p>
+                <h3>Specialist agents</h3>
+              </div>
+              <span id="journeyStatus" class="status-chip">Pending</span>
+            </div>
+            <div id="steps" class="steps"></div>
+          </article>
+
+          <article class="panel">
+            <p class="eyebrow">Agent Trace</p>
+            <h3>Audit timeline</h3>
+            <div id="auditTimeline" class="audit-timeline"></div>
+          </article>
+
+          <article class="panel">
+            <p class="eyebrow">Govern Layer</p>
+            <h3>Pre-submission verification</h3>
+            <div id="verification" class="verification"></div>
+          </article>
+
+          <article class="panel">
+            <p class="eyebrow">Commercial Signal</p>
+            <h3>Illustrative impact</h3>
+            <div id="impact" class="impact"></div>
+          </article>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
