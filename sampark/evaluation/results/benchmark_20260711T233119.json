@@ -1,0 +1,72 @@
+{
+  "run_at": "2026-07-11T18:01:19+00:00",
+  "scenarios_tested": 3,
+  "scenario_correctness_rate": 1.0,
+  "narration_acceptance_rate": 0.0,
+  "avg_narration_score": null,
+  "avg_rounds_to_resolution": 1.0,
+  "avg_latency_seconds": 75.9,
+  "p95_latency_seconds": 68.95,
+  "total_llm_calls": 26,
+  "total_llm_cost_usd": 0.000123,
+  "scenarios": [
+    {
+      "customer_id": "c001",
+      "customer_name": "Sita Devi",
+      "expected_outcome": "ready",
+      "actual_outcome": "ready",
+      "scenario_correct": true,
+      "step_count": 3,
+      "narrated_step_count": 3,
+      "accepted_step_count": 0,
+      "narration_scores": [],
+      "narration_rounds": [
+        1,
+        1,
+        1
+      ],
+      "latency_seconds": 68.95,
+      "llm_calls": 11,
+      "llm_cost_usd": 0.000123,
+      "error": null
+    },
+    {
+      "customer_id": "c003",
+      "customer_name": "Amina Begum",
+      "expected_outcome": "blocked",
+      "actual_outcome": "blocked",
+      "scenario_correct": true,
+      "step_count": 5,
+      "narrated_step_count": 5,
+      "accepted_step_count": 0,
+      "narration_scores": [],
+      "narration_rounds": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "latency_seconds": 158.73,
+      "llm_calls": 15,
+      "llm_cost_usd": 0.0,
+      "error": null
+    },
+    {
+      "customer_id": "c006",
+      "customer_name": "Lalita Oraon",
+      "expected_outcome": "blocked",
+      "actual_outcome": "blocked",
+      "scenario_correct": true,
+      "step_count": 0,
+      "narrated_step_count": 0,
+      "accepted_step_count": 0,
+      "narration_scores": [],
+      "narration_rounds": [],
+      "latency_seconds": 0.01,
+      "llm_calls": 0,
+      "llm_cost_usd": 0.0,
+      "error": null
+    }
+  ]
+}

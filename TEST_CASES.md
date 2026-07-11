@@ -3,7 +3,9 @@
 This document maps every automated test in [`tests/`](tests/) to a human-readable test case: what scenario it covers, what precondition it assumes, what it does, and what "pass" means. It exists so a reviewer can audit test *coverage and intent* without reading Python — the automated test itself is the executable proof; this catalog is the narrative.
 
 **Run everything:** `./.venv/bin/python -m unittest discover -s tests -v`
-**Current count:** 79 tests, all passing fully offline (no `ANTHROPIC_API_KEY`/`GEMINI_API_KEY` needed, no network calls — every LLM-touching test uses an injected `StubProviderClient`).
+**Current count:** 85 tests, all passing fully offline (no `ANTHROPIC_API_KEY`/`GEMINI_API_KEY` needed, no network calls — every LLM-touching test uses an injected `StubProviderClient`).
+
+This catalog covers the offline test suite only. There is a separate **live evaluation harness** (`sampark/evaluation/benchmark.py`) that runs real LLM calls against every mock customer and reports quality/latency/cost — see Section K.
 
 **Legend for Category:**
 - 🔒 **Deterministic** — rule-based logic, no LLM involved, behavior is exact and repeatable.
@@ -186,6 +188,21 @@ Behavior that only appears when **multiple** actions are narrated together — c
 
 ---
 
+## K. Benchmark Harness Logic — `tests/test_benchmark.py` (🔒 Deterministic, 6 tests)
+
+`sampark/evaluation/benchmark.py` is a separate, non-offline evaluation harness (see below) that makes *real* LLM calls — its live behavior isn't unit-testable without cost/network. What **is** unit-tested here is the harness's own aggregation logic (`summarize()`), which is pure and deterministic given a list of scenario results.
+
+| ID | Test Case | Precondition | Steps | Expected Result | Reference |
+|---|---|---|---|---|---|
+| BENCH-001 | All-correct scenarios yield a 100% correctness rate | Two scenario results, both `scenario_correct=True` | `summarize([...])` | `scenario_correctness_rate == 1.0` | `test_all_correct_scenarios_yield_full_correctness_rate` |
+| BENCH-002 | One incorrect scenario lowers the rate proportionally | One correct, one incorrect result | `summarize([...])` | `scenario_correctness_rate == 0.5` | `test_one_incorrect_scenario_lowers_correctness_rate` |
+| BENCH-003 | Narration acceptance rate aggregates across all narrated steps, not per-scenario | Two results with different narrated/accepted counts | `summarize([...])` | Rate computed as `total_accepted / total_narrated` across both scenarios (0.75) | `test_narration_acceptance_rate_computed_across_all_steps` |
+| BENCH-004 | Cost and call totals are summed correctly | Two results with known cost/call counts | `summarize([...])` | Totals match hand-computed sums exactly | `test_cost_and_call_totals_are_summed` |
+| BENCH-005 | An errored scenario counts as incorrect but is excluded from latency stats | One normal result, one with `actual_outcome="error"` | `summarize([...])` | `scenario_correctness_rate == 0.5`; `avg_latency_seconds` reflects only the non-errored result | `test_errored_scenario_excluded_from_latency_stats_but_counted_as_incorrect` |
+| BENCH-006 | Empty results never divide by zero | No scenario results | `summarize([])` | Returns zeros/`None`s cleanly, no exception | `test_empty_results_do_not_divide_by_zero` |
+
+---
+
 ## Coverage summary
 
 | Suite | Count | What it proves |
@@ -200,6 +217,20 @@ Behavior that only appears when **multiple** actions are narrated together — c
 | H. Utilities | 6 | Prompt-injection defense-in-depth works without over-blocking |
 | I. Providers | 6 | Multi-provider wiring and real-world error parsing are correct |
 | J. Orchestrator integration | 4 | Concurrent narration doesn't break correctness or the safety ordering |
-| **Total** | **79** | |
+| K. Benchmark harness logic | 6 | Live-eval aggregation math is correct and division-by-zero-safe |
+| **Total** | **85** | |
 
-Not covered by automated tests (deliberately, and documented as such): a live, non-stubbed API call to Anthropic or Gemini. That's exercised manually (see README "Setup" and "Run The Browser Demo") precisely because it costs real money and depends on external quota/availability — the offline suite proves the *code* is correct; a live run proves the *deployment* is configured.
+Not covered by this offline suite (deliberately, and documented as such): a live, non-stubbed API call to Anthropic or Gemini. That's exercised by the separate live evaluation harness instead:
+
+## Live Evaluation Harness — `sampark/evaluation/benchmark.py`
+
+Unlike everything above, this makes **real LLM calls** against every mock customer scenario and reports quality/latency/cost — mirroring the sibling CineAgent project's "Automated Evaluation Benchmark," but reusing Sampark's own independent verifier score instead of paying for a second separate judge call.
+
+```bash
+python -m sampark.evaluation.benchmark --customers all --delay 15
+python -m sampark.evaluation.benchmark --customers c001,c003,c007
+```
+
+Reports, per run: scenario correctness rate (does the deterministic guardrail outcome match the expected `ready`/`blocked` result per the Demo Scenario Catalog), narration acceptance rate (% of steps whose draft/verify loop scored ≥85), average narration score, average rounds-to-resolution, latency (avg/p95), and total LLM cost/calls. Full per-scenario results are written to `sampark/evaluation/results/*.json`.
+
+**Live result on record** (`sampark/evaluation/results/benchmark_20260711T233119.json`, run against `c001`/`c003`/`c006` on the deployed Gemini free-tier key): scenario correctness held at **100%** even though the key's daily quota was already exhausted mid-run and narration fell back to static text for most steps (0% acceptance that run) — a real demonstration of the resilience design (Section D, RE-005) under an actual, not simulated, provider outage, with the compliance layer entirely unaffected.

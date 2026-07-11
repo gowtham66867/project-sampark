@@ -149,11 +149,21 @@ Key modules:
 ./.venv/bin/python -m unittest discover -s tests -v
 ```
 
-Current QA coverage: **79 passing tests**, run fully offline with `ANTHROPIC_API_KEY`/`GEMINI_API_KEY` unset — no network calls, no real LLM cost, using an injected `StubProviderClient` seam.
+Current QA coverage: **85 passing tests**, run fully offline with `ANTHROPIC_API_KEY`/`GEMINI_API_KEY` unset — no network calls, no real LLM cost, using an injected `StubProviderClient` seam.
 
-Covered areas include the original 26 rule-based tests (planner branches, KYC blocks, consent block, suspicious-risk block, OTP/device block, low-connectivity warning, senior-citizen warning, merchant QR onboarding, RD suitability controls, action reasoning payloads, audit timeline, learning signals, data isolation, audit ID format, and impact math) plus 53 new tests: prompt-injection sanitization, model-manager retry/fallback/cost aggregation (including honoring a provider's own retry-delay hint on real rate-limit errors), skill matching, tool-use access control, the draft/verify/refine loop (including graceful fallback on provider outage and mid-conversation provider handoff), episodic-memory persistence, concurrent multi-step narration correctness, and — most importantly — an adversarial suite proving a hostile, hallucinating LLM response cannot unblock a guardrail-blocked action.
+Covered areas include the original 26 rule-based tests (planner branches, KYC blocks, consent block, suspicious-risk block, OTP/device block, low-connectivity warning, senior-citizen warning, merchant QR onboarding, RD suitability controls, action reasoning payloads, audit timeline, learning signals, data isolation, audit ID format, and impact math) plus 59 new tests: prompt-injection sanitization, model-manager retry/fallback/cost aggregation (including honoring a provider's own retry-delay hint on real rate-limit errors), skill matching, tool-use access control, the draft/verify/refine loop (including graceful fallback on provider outage and mid-conversation provider handoff), episodic-memory persistence, concurrent multi-step narration correctness, the live benchmark harness's own aggregation math, and — most importantly — an adversarial suite proving a hostile, hallucinating LLM response cannot unblock a guardrail-blocked action.
 
-**Full test case catalog:** every one of the 79 tests is documented in [TEST_CASES.md](TEST_CASES.md) — scenario, precondition, steps, and expected result for each, organized by suite.
+**Full test case catalog:** every one of the 85 tests is documented in [TEST_CASES.md](TEST_CASES.md) — scenario, precondition, steps, and expected result for each, organized by suite.
+
+## Live Evaluation Benchmark
+
+Separate from the offline test suite, `sampark/evaluation/benchmark.py` makes **real LLM calls** against every mock customer scenario and reports quality/latency/cost — mirroring the sibling CineAgent project's evaluation benchmark, but reusing Sampark's own independent verifier score rather than paying for a second judge call.
+
+```bash
+./.venv/bin/python -m sampark.evaluation.benchmark --customers all --delay 15
+```
+
+Reports scenario correctness (does the live guardrail outcome match the expected result), narration acceptance rate, average score/rounds, latency (avg/p95), and total cost — full per-scenario results saved to `sampark/evaluation/results/*.json`. See [TEST_CASES.md](TEST_CASES.md#live-evaluation-harness--samparkevaluationbenchmarkpy) for a real recorded run, including one where the deployed key's daily quota ran out mid-benchmark — scenario correctness held at 100% regardless, since that's decided entirely outside the LLM.
 
 ## API Smoke Checks
 
@@ -182,4 +192,4 @@ The prototype mocks SBI core, AePS, YONO, Account Aggregator, OTP, QR, and risk 
 
 ## Prototype Score
 
-As a hackathon prototype, this is positioned around **9.5/10**: demoable, explainable, policy-aware, tested (79 tests, all documented in [TEST_CASES.md](TEST_CASES.md), all passing offline), and now backed by real multi-model LLM reasoning with a provably unbypassable compliance boundary. Narration across multiple proposed actions runs concurrently rather than sequentially, and provider-supplied rate-limit hints (e.g. Gemini's `retryDelay`) are honored directly rather than guessed at — both hardened after live testing against a real Gemini deployment surfaced them as real risks, not hypothetical ones. As production software, it would still need SBI-grade identity, access control, connector hardening, persistence at scale, monitoring, security review, and compliance sign-off — the LLM layer itself would additionally need SBI's approved data-residency/model-hosting setup.
+As a hackathon prototype, this is positioned around **9.5/10**: demoable, explainable, policy-aware, tested (85 tests, all documented in [TEST_CASES.md](TEST_CASES.md), all passing offline), and now backed by real multi-model LLM reasoning with a provably unbypassable compliance boundary. Narration across multiple proposed actions runs concurrently rather than sequentially, and provider-supplied rate-limit hints (e.g. Gemini's `retryDelay`) are honored directly rather than guessed at — both hardened after live testing against a real Gemini deployment surfaced them as real risks, not hypothetical ones. As production software, it would still need SBI-grade identity, access control, connector hardening, persistence at scale, monitoring, security review, and compliance sign-off — the LLM layer itself would additionally need SBI's approved data-residency/model-hosting setup.
