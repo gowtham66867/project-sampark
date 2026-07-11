@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import os
 from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -12,9 +13,19 @@ from sampark.console import print_run
 from sampark.core.impact import project_impact
 from sampark.core.orchestrator import SamparkOrchestrator
 from sampark.data.mock_data import get_bank_mitra, get_customer, list_customers
+from sampark.llm.factory import build_default_reasoning_engine
+from sampark.llm.memory import EpisodicMemory
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "sampark" / "web"
+
+# Constructed once at server startup, not per-request, so LLM cost/usage
+# and learning accumulate across requests within one server run.
+# REASONING_ENGINE is None if ANTHROPIC_API_KEY is not set -- callers must
+# treat that as "LLM unavailable" (see /api/run below), never silently
+# fall back to rule-based-only behavior on this API surface.
+REASONING_ENGINE = build_default_reasoning_engine()
+EPISODIC_MEMORY = EpisodicMemory(os.environ.get("SAMPARK_LEARNING_DB_PATH", "sampark_learning.sqlite3"))
 
 
 class SamparkHandler(BaseHTTPRequestHandler):
@@ -23,6 +34,20 @@ class SamparkHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/customers":
             self.write_json([asdict(customer) for customer in list_customers()])
             return
+        if parsed.path == "/api/health":
+            llm_configured = REASONING_ENGINE is not None
+            self.write_json(
+                {
+                    "status": "ok" if llm_configured else "degraded",
+                    "llm_configured": llm_configured,
+                    "detail": None
+                    if llm_configured
+                    else "No LLM provider configured (set ANTHROPIC_API_KEY and/or GEMINI_API_KEY); narration is unavailable.",
+                    "llm_usage": REASONING_ENGINE.usage_summary() if llm_configured else None,
+                },
+                status=200 if llm_configured else 503,
+            )
+            return
         if parsed.path == "/api/run":
             customer_id = parse_qs(parsed.query).get("customer", ["c001"])[0]
             try:
@@ -30,9 +55,26 @@ class SamparkHandler(BaseHTTPRequestHandler):
             except KeyError:
                 self.write_json({"error": "unknown_customer", "customer_id": customer_id}, status=404)
                 return
-            run = SamparkOrchestrator().run(customer, get_bank_mitra())
+            if REASONING_ENGINE is None:
+                self.write_json(
+                    {
+                        "error": "llm_unavailable",
+                        "detail": (
+                            "No LLM provider configured (set ANTHROPIC_API_KEY and/or "
+                            "GEMINI_API_KEY). This build requires real LLM narration and "
+                            "does not fall back to rule-based-only mode."
+                        ),
+                    },
+                    status=503,
+                )
+                return
+            orchestrator = SamparkOrchestrator(
+                reasoning_engine=REASONING_ENGINE, episodic_memory=EPISODIC_MEMORY
+            )
+            run = orchestrator.run(customer, get_bank_mitra())
             payload = run.to_dict()
             payload["impact"] = project_impact()
+            payload["llm_usage"] = REASONING_ENGINE.usage_summary()
             self.write_json(payload)
             return
         self.serve_static(parsed.path)

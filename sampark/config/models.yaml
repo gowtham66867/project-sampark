@@ -1,0 +1,79 @@
+# Role -> provider/model routing for Project Sampark's LLM-backed narration
+# layer. Swapping a model is a one-line edit here, no code changes needed.
+#
+# NOTE: pricing below is a point-in-time snapshot (2026-07). Re-check
+# current published Anthropic/Google pricing before a live demo -- Sonnet 5
+# in particular has carried an introductory rate that reverts on a fixed
+# date, and cost-tracking numbers shown in the UI will jump when it does.
+
+version: 1
+
+defaults:
+  max_retries: 3
+  backoff_base_seconds: 0.5
+  backoff_multiplier: 2.0
+  backoff_max_seconds: 20.0
+  request_timeout_seconds: 30
+
+roles:
+  # Drafts the localized, plain-language explanation for one AgentAction.
+  # This text only narrates what specialists.py/guardrails.py already
+  # decided -- it never decides eligibility itself.
+  narrator_draft:
+    provider: anthropic
+    model: claude-sonnet-5
+    max_tokens: 1024
+    fallback:
+      - provider: anthropic
+        model: claude-haiku-4-5-20251001
+      - provider: gemini
+        model: gemini-2.5-flash
+
+  # Independent scorer for the Draft -> Verify -> Refine loop. Deliberately
+  # a *different, stronger* model than narrator_draft so the verification
+  # is a genuine second opinion, not the same model re-reading its own work.
+  narrator_verifier:
+    provider: anthropic
+    model: claude-opus-4-8
+    max_tokens: 512
+    fallback:
+      - provider: anthropic
+        model: claude-sonnet-5
+      # NOTE: gemini-2.5-pro would be the "different, stronger model"
+      # choice here, but Google's free tier grants it ZERO request quota
+      # (confirmed live: 429 RESOURCE_EXHAUSTED with limit=0) -- so in a
+      # free-tier Gemini-only deployment (no Anthropic key at all) the
+      # verifier necessarily falls back to the same tier as the drafter.
+      # This is an honest limitation of that specific deployment mode, not
+      # a bug: the "different/stronger model verifies" property still
+      # holds whenever Anthropic is configured (the normal case).
+      - provider: gemini
+        model: gemini-2.5-flash
+
+  # Cheap/fast lookup used only to help select which skill playbook's
+  # tone/framing to lean on when the deterministic title-match is ambiguous.
+  # NOTE: not currently invoked anywhere in reasoning_engine.py -- skill
+  # selection is deterministic regex matching (SkillManager.select_skill).
+  # This role is reserved for a future LLM-assisted tie-break; harmless if
+  # unused.
+  skill_router:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+    max_tokens: 256
+    fallback:
+      - provider: anthropic
+        model: claude-sonnet-5
+      - provider: gemini
+        model: gemini-2.5-flash
+
+pricing_usd_per_million_tokens:
+  anthropic:
+    claude-opus-4-8: {input: 5.00, output: 25.00}
+    claude-sonnet-5: {input: 3.00, output: 15.00}
+    claude-haiku-4-5-20251001: {input: 1.00, output: 5.00}
+  gemini:
+    gemini-2.5-flash: {input: 0.075, output: 0.30}
+    # Approximate -- verify against current Google AI pricing before relying
+    # on this for real cost tracking; included so Gemini-only mode doesn't
+    # silently report $0 cost when the verifier falls back to this tier.
+    gemini-2.5-pro: {input: 1.25, output: 10.00}

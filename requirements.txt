@@ -1,2 +1,9 @@
-# No external dependencies required for the prototype.
-
+anthropic>=0.40.0
+pyyaml>=6.0
+python-dotenv>=1.0.0
+# google-genai is intentionally NOT listed here -- it is an optional,
+# lazily-imported dependency only required if GEMINI_API_KEY is set.
+# Install manually with `pip install google-genai` to use Gemini (either as
+# fallback, or as the sole provider if ANTHROPIC_API_KEY is absent).
+# Note: the older `google-generativeai` package is end-of-life -- this
+# project uses the current `google-genai` SDK.

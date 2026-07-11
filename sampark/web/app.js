@@ -8,6 +8,7 @@ const verification = document.querySelector("#verification");
 const impact = document.querySelector("#impact");
 const journeyStatus = document.querySelector("#journeyStatus");
 const auditTimeline = document.querySelector("#auditTimeline");
+const llmUsage = document.querySelector("#llmUsage");
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -49,11 +50,14 @@ function renderSteps(items) {
   steps.innerHTML = items.map((step) => {
     const stateClass = step.status === "blocked" ? "blocked" : "ready";
     const payload = step.payload || {};
+    const skillUsed = payload.skill_used;
+    const reasoningTrace = payload.reasoning_trace || [];
     return `
       <div class="step">
         <div>
           <p class="eyebrow">${escapeHtml(step.agent)}</p>
           <h4>${escapeHtml(step.title)}</h4>
+          ${skillUsed ? `<span class="skill-tag">${escapeHtml(skillUsed.replaceAll("_", " "))}</span>` : ""}
         </div>
         <div>
           <p>${escapeHtml(step.detail)}</p>
@@ -63,6 +67,7 @@ function renderSteps(items) {
             <dt>Mitra check</dt>
             <dd>${escapeHtml(payload.bank_mitra_must_verify || "Confirm customer authorisation.")}</dd>
           </dl>
+          ${reasoningTrace.length ? `<p class="trace-note">LLM verified in ${reasoningTrace.length} round(s), final score ${escapeHtml(reasoningTrace[reasoningTrace.length - 1]?.score ?? "n/a")}/100.</p>` : ""}
         </div>
         <span class="status ${stateClass}">${escapeHtml(titleCaseStatus(step.status))}</span>
       </div>
@@ -109,6 +114,19 @@ function renderImpact(item) {
   `;
 }
 
+function renderLlmUsage(item) {
+  if (!item) {
+    llmUsage.innerHTML = `<p>No LLM usage recorded for this run.</p>`;
+    return;
+  }
+  llmUsage.innerHTML = `
+    <div>
+      <div class="big-number">$${item.total_cost_usd.toFixed(4)}</div>
+      <p>${item.total_calls} LLM call(s), ${item.total_input_tokens}+${item.total_output_tokens} tokens (cumulative this server run).</p>
+    </div>
+  `;
+}
+
 async function loadCustomers() {
   const response = await fetch("/api/customers");
   const customers = await response.json();
@@ -124,7 +142,11 @@ async function runJourney() {
   const data = await response.json();
   if (!response.ok) {
     auditId.textContent = "Error";
-    goal.textContent = `Unable to run journey: ${data.error || "request failed"}`;
+    if (data.error === "llm_unavailable") {
+      goal.textContent = "LLM unavailable: ANTHROPIC_API_KEY is not set on the server. This build requires real LLM narration and will not fall back to rule-based-only mode.";
+    } else {
+      goal.textContent = `Unable to run journey: ${data.error || "request failed"}`;
+    }
     runButton.disabled = false;
     runButton.textContent = "Run Assisted Journey";
     return;
@@ -137,6 +159,7 @@ async function runJourney() {
   renderVerification(data.verification);
   renderAuditTimeline(data.audit_timeline || []);
   renderImpact(data.impact);
+  renderLlmUsage(data.llm_usage);
   runButton.disabled = false;
   runButton.textContent = "Run Assisted Journey";
 }

@@ -273,9 +273,30 @@ button {
 .step p,
 .reasoning dd,
 .verification p,
-.impact p {
+.impact p,
+.llm-usage p {
   color: var(--muted);
   line-height: 1.5;
+}
+
+.skill-tag {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.trace-note {
+  margin: 8px 0 0;
+  color: var(--cyan);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .reasoning {
@@ -316,6 +337,7 @@ button {
 
 .verification,
 .impact,
+.llm-usage,
 .audit-timeline {
   display: grid;
   gap: 12px;
