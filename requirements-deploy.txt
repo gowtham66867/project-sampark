@@ -1,0 +1,6 @@
+# Container/deployment dependency set. requirements.txt intentionally
+# omits google-genai (it's optional/lazy for local dev) -- this file adds
+# it back because a real deployment needs whichever provider(s) are
+# actually configured via Cloud Run secrets/env vars at runtime.
+-r requirements.txt
+google-genai>=0.3.0

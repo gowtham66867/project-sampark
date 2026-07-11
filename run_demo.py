@@ -101,9 +101,9 @@ class SamparkHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def serve(port: int) -> None:
-    server = ThreadingHTTPServer(("127.0.0.1", port), SamparkHandler)
-    print(f"Project Sampark console running at http://127.0.0.1:{port}")
+def serve(port: int, host: str) -> None:
+    server = ThreadingHTTPServer((host, port), SamparkHandler)
+    print(f"Project Sampark console running at http://{host}:{port}")
     print("Press Ctrl+C to stop.")
     try:
         server.serve_forever()
@@ -114,16 +114,21 @@ def serve(port: int) -> None:
 
 
 def main() -> None:
+    # Cloud Run (and most container platforms) inject PORT and require
+    # binding 0.0.0.0 -- both are overridable for local development via
+    # --port / SAMPARK_HOST, but default to container-friendly values so
+    # the same run_demo.py works unmodified locally and deployed.
     parser = argparse.ArgumentParser(description="Run Project Sampark prototype.")
     parser.add_argument("--cli", action="store_true", help="Print a CLI demo instead of opening the web console.")
     parser.add_argument("--customer", default="c001", choices=[f"c{index:03d}" for index in range(1, 11)])
-    parser.add_argument("--port", type=int, default=8088)
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8088)))
+    parser.add_argument("--host", default=os.environ.get("SAMPARK_HOST", "0.0.0.0"))
     args = parser.parse_args()
 
     if args.cli:
         print_run(args.customer)
     else:
-        serve(args.port)
+        serve(args.port, args.host)
 
 
 if __name__ == "__main__":
