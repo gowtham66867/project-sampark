@@ -14,6 +14,8 @@ The prototype deliberately keeps the Bank Mitra as the human-in-the-loop actor. 
 
 **Live demo (deployed on Google Cloud Run):** [https://sampark-564262191703.us-central1.run.app](https://sampark-564262191703.us-central1.run.app) — public, no login required. Running on the Gemini free tier, which caps at 5 requests/minute and 20/day; if the demo shows a rate-limit error, wait a minute and retry, or run it locally with `ANTHROPIC_API_KEY` for a higher-throughput provider (see "Setup" below).
 
+**Demo video:** [Watch on Loom](https://www.loom.com/share/c7ca38ed771e4373a12e875570efa93c) — a walkthrough of the live console, including both an accepted "ready" journey and a guardrail-blocked "requires human resolution" journey.
+
 ---
 
 ## Why This Matters for SBI
