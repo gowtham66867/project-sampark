@@ -3,7 +3,7 @@
 This document maps every automated test in [`tests/`](tests/) to a human-readable test case: what scenario it covers, what precondition it assumes, what it does, and what "pass" means. It exists so a reviewer can audit test *coverage and intent* without reading Python — the automated test itself is the executable proof; this catalog is the narrative.
 
 **Run everything:** `./.venv/bin/python -m unittest discover -s tests -v`
-**Current count:** 85 tests, all passing fully offline (no `ANTHROPIC_API_KEY`/`GEMINI_API_KEY` needed, no network calls — every LLM-touching test uses an injected `StubProviderClient`).
+**Current count:** 100 tests, all passing fully offline (no `ANTHROPIC_API_KEY`/`GEMINI_API_KEY` needed, no network calls — every LLM-touching test uses an injected `StubProviderClient`).
 
 This catalog covers the offline test suite only. There is a separate **live evaluation harness** (`sampark/evaluation/benchmark.py`) that runs real LLM calls against every mock customer and reports quality/latency/cost — see Section K.
 
@@ -203,6 +203,30 @@ Behavior that only appears when **multiple** actions are narrated together — c
 
 ---
 
+## L. Integration Contract — `tests/test_integration_interfaces.py` (🔒 Deterministic, 15 tests)
+
+Proves the real-integration `Protocol` interfaces (`sampark/integrations/interfaces.py`) are concretely satisfiable, not just aspirational — and that the mock reference implementations (`sampark/integrations/mock_adapters.py`) behave correctly.
+
+| ID | Test Case | Precondition | Steps | Expected Result | Reference |
+|---|---|---|---|---|---|
+| INTG-001 | Mock customer data provider satisfies `CustomerDataProvider` | — | `isinstance(MockCustomerDataProvider(), CustomerDataProvider)` | `True` | `test_mock_customer_data_provider_satisfies_protocol` |
+| INTG-002 | Mock consent ledger satisfies `ConsentLedger` | — | `isinstance(MockConsentLedger(), ConsentLedger)` | `True` | `test_mock_consent_ledger_satisfies_protocol` |
+| INTG-003 | Mock Bank Mitra directory satisfies `BankMitraDirectory` | — | `isinstance(MockBankMitraDirectory(), BankMitraDirectory)` | `True` | `test_mock_bank_mitra_directory_satisfies_protocol` |
+| INTG-004 | Complete adapter reports zero missing capabilities | — | `find_missing_capabilities(MockCustomerDataProvider())` | `report["CustomerDataProvider"] == []` | `test_find_missing_capabilities_reports_nothing_missing_for_complete_adapter` |
+| INTG-005 | Partial adapter reports exactly its missing methods | An object implementing only `get_customer`, not `list_customers` | `find_missing_capabilities(partial)` | `report["CustomerDataProvider"] == ["list_customers"]` — this is the diagnostic an integration engineer would actually use mid-implementation | `test_find_missing_capabilities_reports_missing_methods_for_partial_object` |
+| INTG-006 | Mock provider's `get_customer` matches underlying mock data | — | Fetch `c001` | Returns `Sita Devi`, matching `mock_data.py` exactly | `test_get_customer_matches_underlying_mock_data` |
+| INTG-007 | Unknown customer raises `KeyError` through the adapter | — | Fetch `"unknown"` | Raises `KeyError` | `test_unknown_customer_raises_key_error` |
+| INTG-008 | `list_customers` returns all 10 through the adapter | — | `list_customers()` | Length 10 | `test_list_customers_returns_all_ten` |
+| INTG-009 | Seeded consent status matches existing mock data | — | Check `c006` (no-consent scenario) vs `c001` | `False` / `True` respectively | `test_seeded_consent_status_matches_mock_data` |
+| INTG-010 | Recording consent capture updates status and audit history | `c006` starts with no consent | `record_consent_capture(...)` then check status/history | Status flips to `True`; history has exactly 1 entry with the recorded channel | `test_record_consent_capture_updates_status_and_history` |
+| INTG-011 | Unknown customer defaults to no consent, not an error | — | `get_consent_status("does-not-exist")` | `False` — a real consent ledger should never crash on an unrecognized customer, it should deny by default | `test_unknown_customer_defaults_to_no_consent` |
+| INTG-012 | Known Bank Mitra ID returns the record | — | Fetch the mock outlet's `mitra_id` | Returns the matching `BankMitra` | `test_known_mitra_id_returns_record` |
+| INTG-013 | Unknown Bank Mitra ID raises `KeyError` | — | Fetch an unknown ID | Raises `KeyError` | `test_unknown_mitra_id_raises_key_error` |
+| INTG-014 | `IntegrationBundle` overlays live consent onto a fetched customer | `c006`, no consent captured yet | `bundle.load_customer_for_visit("c006")` | Returned customer's `.consent` is `False` — proving the bundle reads consent from the ledger, not a static field | `test_load_customer_for_visit_overlays_live_consent_status` |
+| INTG-015 | Bundle reflects freshly captured consent immediately | Consent just recorded for `c006` | `bundle.load_customer_for_visit("c006")` | Returned customer's `.consent` is now `True` | `test_load_customer_for_visit_reflects_freshly_captured_consent` |
+
+---
+
 ## Coverage summary
 
 | Suite | Count | What it proves |
@@ -218,7 +242,8 @@ Behavior that only appears when **multiple** actions are narrated together — c
 | I. Providers | 6 | Multi-provider wiring and real-world error parsing are correct |
 | J. Orchestrator integration | 4 | Concurrent narration doesn't break correctness or the safety ordering |
 | K. Benchmark harness logic | 6 | Live-eval aggregation math is correct and division-by-zero-safe |
-| **Total** | **85** | |
+| L. Integration contract | 15 | The real-system integration interfaces are concretely satisfiable, not aspirational |
+| **Total** | **100** | |
 
 Not covered by this offline suite (deliberately, and documented as such): a live, non-stubbed API call to Anthropic or Gemini. That's exercised by the separate live evaluation harness instead:
 
